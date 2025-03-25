@@ -1,0 +1,98 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual Environments
+.env
+.venv
+venv/
+ENV/
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# Model files and weights
+*.pt
+*.pth
+*.onnx
+*.trt
+*.bin
+*.h5
+*.hdf5
+*.pkl
+*.joblib
+models/
+weights/
+checkpoints/
+
+# Triton Inference Server
+model_repository/
+*.log
+triton_log/
+
+# Ray
+ray_tmp/
+ray_logs/
+*.ray
+ray_spill/
+
+# Home Assistant
+.storage
+.cloud
+*.db
+*.db-shm
+*.db-wal
+*.log
+secrets.yaml
+known_devices.yaml
+
+# Data and cache directories
+data/
+raw_data/
+processed_data/
+cached_data/
+tmp/
+temp/
+.cache/
+
+# Environment configurations
+.env*
+config.yaml
+!example.config.yaml
+
+# Large files and datasets
+*.csv
+*.parquet
+*.json
+*.zip
+*.tar.gz
