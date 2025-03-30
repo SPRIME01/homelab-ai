@@ -1,6 +1,43 @@
 # GitHub Copilot Custom Instructions
 
-These instructions guide GitHub Copilot to generate code that adheres to best practices and architectural principles. In cases of conflict, these custom instructions take precedence over other guidelines.
+### Project Overview
+
+This repository contains the AI/ML platform components of a homelab project focused on:
+
+- **Local AI/ML Development**: Personal computing environment for AI experimentation and learning
+- **Hardware**: NVIDIA Jetson AGX Orin for GPU-accelerated AI workloads
+- **Home Automation**: Integration with Home Assistant for AI-driven smart home capabilities
+- **Core Technologies**: Open-source tools for model serving, resource management and automation
+- **Architecture**: Modular and scalable design for easy expansion of components
+
+The platform enables local AI model serving, distributed resource management, and seamless integration between AI models and home automation tasks.
+
+
+**Tech Stack:**
+
+*   **NVIDIA Triton Inference Server**: For AI model serving [10].
+*   **Ray Cluster**: For distributed resource management and scaling of AI applications [10].
+*   **Python**: Primarily used for scripts related to model optimization, deployment, and testing [11, 12].
+*   **YAML**: For configuration files related to Triton and Ray.
+*   **Home Assistant AI**: Integration components for AI functionalities within Home Assistant [13].
+*   **Git**: For version control [2]. Follow a **GitFlow-inspired branching strategy** [3].
+*   **Bash**: For setup and utility scripts [14].
+
+**Important Coding Patterns and Rules:**
+
+*   **Model Repository Structure**: Follow the expected structure for the Triton model repository [14].
+*   **Ray Application Design**: Design Ray applications for distributed execution and efficient resource utilization.
+*   **Model Optimization**: Implement pipelines for model conversion, quantization, and performance testing [11].
+*   **Home Assistant Integration**: Follow Home Assistant integration guidelines for creating custom components and services.
+*   **Testing**: Implement comprehensive tests for Triton models, Ray applications, and Home Assistant AI integrations [15].
+*   **GPU Utilization**: Optimize code and configurations to effectively utilize the GPU resources of the NVIDIA Jetson AGX Orin [8].
+*   **Docker**: Familiarity with Docker for containerizing AI models and applications.
+
+**Key Limitations:**
+
+*   Target hardware for AI/ML workloads is the **NVIDIA Jetson AGX Orin** [8]. Ensure models and applications are compatible with its architecture and capabilities.
+*   Integration with Home Assistant is a key aspect [16]. Ensure seamless communication and data exchange.
+*   Consider the resource constraints of the Jetson AGX Orin when deploying large models or complex applications.
 
 ---
 
@@ -73,15 +110,16 @@ These instructions guide GitHub Copilot to generate code that adheres to best pr
 
 ---
 
-## Branch Management
-
-- Never work directly on main/master
-- Create feature branches: `git checkout -b feature/<feature-name>` using kebab-case
-- Keep features small and focused
-- Use pull requests for code reviews
-- Commit often with descriptive messages
-- Commit Message Format: - 📝 Be extremely detailed with file changes - 🤔 Explain the reasoning behind each change - 🎨 Use relevant emojis to categorize changes - Example: "✨ feat(auth): Add JWT token validation to login endpoint - 🔧 Modified: src/auth/jwt_validator.py - 📦 Added: tests/auth/test_jwt_validator.py - 🔥 Removed: old token validation logic
-  Why: Improves security by implementing industry-standard JWT validation"
+## Commit Message Format
+- 📝 Be extremely detailed with file changes
+- 🤔 Explain the reasoning behind each change
+- 🎨 Use relevant emojis to categorize changes
+- Examples:
+  - ✨ feat(auth): Add JWT token validation to login endpoint
+  - 🔧 Modified: src/auth/jwt_validator.py
+  - 📦 Added: tests/auth/test_jwt_validator.py
+  - 🔥 Removed: old token validation logic
+  - 🤔 Why: Improves security by implementing industry-standard JWT validation"
 
 ---
 
