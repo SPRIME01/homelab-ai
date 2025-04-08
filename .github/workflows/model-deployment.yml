@@ -1,0 +1,293 @@
+name: AI Model Deployment Pipeline
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'models/**'
+      - 'config/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'models/**'
+      - 'config/**'
+  workflow_dispatch:
+    inputs:
+      model_name:
+        description: 'Name of the model to deploy'
+        required: true
+      model_version:
+        description: 'Version of the model'
+        required: true
+
+env:
+  MINIO_ENDPOINT: ${{ secrets.MINIO_ENDPOINT }}
+  MINIO_ACCESS_KEY: ${{ secrets.MINIO_ACCESS_KEY }}
+  MINIO_SECRET_KEY: ${{ secrets.MINIO_SECRET_KEY }}
+  MINIO_BUCKET: model-repository
+  KUBERNETES_NAMESPACE: triton-inference
+  MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+  MLFLOW_EXPERIMENT_NAME: model-deployment
+
+jobs:
+  validate-model:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install mlflow pytest pyyaml tensorflow torch onnx
+
+      - name: Validate model structure and files
+        id: validate
+        run: |
+          MODEL_NAME=${{ github.event.inputs.model_name || 'all' }}
+          echo "Validating model: $MODEL_NAME"
+          python scripts/validate_model.py --model-name $MODEL_NAME
+          echo "model_name=$MODEL_NAME" >> $GITHUB_OUTPUT
+
+      - name: Upload validation results
+        uses: actions/upload-artifact@v2
+        with:
+          name: validation-report
+          path: reports/validation/
+
+  convert-optimize:
+    needs: validate-model
+    runs-on: self-hosted
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install onnx onnxruntime-gpu tensorflow torch mlflow tensorrt
+
+      - name: Convert model to ONNX
+        run: |
+          MODEL_NAME=${{ needs.validate-model.outputs.model_name }}
+          MODEL_VERSION=${{ github.event.inputs.model_version || 'latest' }}
+          python scripts/convert_to_onnx.py --model-name $MODEL_NAME --model-version $MODEL_VERSION
+
+      - name: Optimize ONNX model
+        run: |
+          python scripts/optimize_model.py --model-name $MODEL_NAME --model-version $MODEL_VERSION
+
+      - name: Upload converted models
+        uses: actions/upload-artifact@v2
+        with:
+          name: optimized-models
+          path: build/models/
+
+  test:
+    needs: convert-optimize
+    runs-on: self-hosted
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest tritonclient[all] numpy pillow mlflow
+
+      - name: Download optimized models
+        uses: actions/download-artifact@v2
+        with:
+          name: optimized-models
+          path: build/models/
+
+      - name: Start Triton Inference Server container for testing
+        run: |
+          docker run -d --name triton-test \
+            -v $(pwd)/build/models:/models \
+            -p 8000:8000 -p 8001:8001 -p 8002:8002 \
+            nvcr.io/nvidia/tritonserver:23.10-py3 \
+            tritonserver --model-repository=/models
+
+      - name: Run model performance tests
+        run: |
+          sleep 15  # Allow Triton server time to start
+          python scripts/test_model_performance.py --url localhost:8000
+
+      - name: Run model accuracy tests
+        run: |
+          python scripts/test_model_accuracy.py --url localhost:8000
+
+      - name: Cleanup test container
+        if: always()
+        run: |
+          docker stop triton-test
+          docker rm triton-test
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v2
+        with:
+          name: test-reports
+          path: reports/tests/
+
+  upload-to-minio:
+    needs: test
+    runs-on: self-hosted
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.10'
+
+      - name: Install MinIO client
+        run: |
+          pip install minio mlflow
+
+      - name: Download optimized models
+        uses: actions/download-artifact@v2
+        with:
+          name: optimized-models
+          path: build/models/
+
+      - name: Upload to MinIO
+        run: |
+          MODEL_NAME=${{ needs.validate-model.outputs.model_name }}
+          MODEL_VERSION=${{ github.event.inputs.model_version || github.sha }}
+
+          # Register model in MLflow
+          python scripts/register_model_mlflow.py \
+            --model-name $MODEL_NAME \
+            --model-version $MODEL_VERSION \
+            --model-path build/models/$MODEL_NAME
+
+          # Upload to MinIO
+          python scripts/upload_to_minio.py \
+            --model-name $MODEL_NAME \
+            --model-version $MODEL_VERSION \
+            --model-path build/models/$MODEL_NAME \
+            --minio-endpoint $MINIO_ENDPOINT \
+            --minio-bucket $MINIO_BUCKET
+
+      - name: Tag successful version
+        run: |
+          MODEL_NAME=${{ needs.validate-model.outputs.model_name }}
+          MODEL_VERSION=${{ github.event.inputs.model_version || github.sha }}
+          echo "$MODEL_NAME:$MODEL_VERSION" > latest-successful-model.txt
+
+      - name: Upload version tag
+        uses: actions/upload-artifact@v2
+        with:
+          name: latest-successful-model
+          path: latest-successful-model.txt
+
+  deploy-to-kubernetes:
+    needs: upload-to-minio
+    runs-on: self-hosted
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v1
+        with:
+          version: 'latest'
+
+      - name: Set Kubernetes context
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Download latest model version
+        uses: actions/download-artifact@v2
+        with:
+          name: latest-successful-model
+          path: ./
+
+      - name: Deploy to Triton Inference Server
+        run: |
+          MODEL_INFO=$(cat latest-successful-model.txt)
+          MODEL_NAME=$(echo $MODEL_INFO | cut -d':' -f1)
+          MODEL_VERSION=$(echo $MODEL_INFO | cut -d':' -f2)
+
+          # Update Kubernetes ConfigMap with new model information
+          kubectl create configmap triton-model-config \
+            --from-literal=model_name=$MODEL_NAME \
+            --from-literal=model_version=$MODEL_VERSION \
+            --from-literal=minio_endpoint=$MINIO_ENDPOINT \
+            --from-literal=minio_bucket=$MINIO_BUCKET \
+            -n $KUBERNETES_NAMESPACE \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          # Apply Kubernetes deployment
+          envsubst < kubernetes/triton-deployment.yaml | kubectl apply -f -
+
+          # Wait for deployment to roll out
+          kubectl rollout status deployment/triton-inference-server -n $KUBERNETES_NAMESPACE --timeout=300s
+
+      - name: Smoke test deployed model
+        run: |
+          # Wait for service to be ready
+          sleep 30
+
+          # Get service endpoint
+          TRITON_ENDPOINT=$(kubectl get svc -n $KUBERNETES_NAMESPACE triton-inference-server -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+
+          # Run simple inference test
+          python scripts/smoke_test.py --url $TRITON_ENDPOINT:8000
+
+  rollback:
+    needs: [upload-to-minio, deploy-to-kubernetes]
+    if: failure() && needs.upload-to-minio.result == 'success'
+    runs-on: self-hosted
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v1
+        with:
+          version: 'latest'
+
+      - name: Set Kubernetes context
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Get previous stable model version
+        run: |
+          python scripts/get_previous_model.py \
+            --mlflow-uri $MLFLOW_TRACKING_URI \
+            --model-name ${{ needs.validate-model.outputs.model_name }}
+
+      - name: Rollback deployment
+        run: |
+          # Apply previous deployment configuration
+          kubectl apply -f kubernetes/previous-deployment.yaml
+
+          # Wait for rollback to complete
+          kubectl rollout status deployment/triton-inference-server -n $KUBERNETES_NAMESPACE
+
+      - name: Notify rollback
+        run: |
+          echo "Deployment failed! Rolled back to previous stable version."
+          # Add notification mechanism here (Slack, email, etc.)

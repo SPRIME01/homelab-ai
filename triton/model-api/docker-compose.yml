@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  model-api:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    environment:
+      - MINIO_ENDPOINT=minio.local:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_SECURE=false
+      - KUBERNETES_NAMESPACE=triton-inference
+      - JWT_SECRET_KEY=change-me-in-production
+      - API_USERNAME=admin
+      - API_PASSWORD=password
+      - PROMETHEUS_URL=http://prometheus.monitoring:9090
+    restart: unless-stopped
+    networks:
+      - homelab-net
+
+networks:
+  homelab-net:
+    external: true

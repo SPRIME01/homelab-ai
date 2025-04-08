@@ -1,0 +1,158 @@
+# Scripts for working with the Triton AI integration
+
+# Process voice intent script
+process_voice_intent:
+  alias: "Process Voice Intent"
+  description: "Processes voice command intents from AI analysis"
+  fields:
+    intent:
+      description: "The intent object from AI processing"
+      example: "{'intent': 'turn_on', 'entities': {'device': 'lights', 'location': 'living room'}}"
+    transcribed_text:
+      description: "The original transcribed text"
+      example: "Turn on the lights in the living room"
+  sequence:
+    - choose:
+        # Light control
+        - conditions:
+            - condition: template
+              value_template: "{{ intent.intent in ['turn_on', 'turn_off'] and 'lights' in intent.entities.device }}"
+          sequence:
+            - service: "light.{{ intent.intent }}"
+              target:
+                area_id: "{{ intent.entities.location | replace(' ', '_') }}"
+            - service: persistent_notification.create
+              data:
+                title: "Voice Command Executed"
+                message: "I've turned {{ 'on' if intent.intent == 'turn_on' else 'off' }} the lights in the {{ intent.entities.location }}."
+                notification_id: "voice_command"
+
+        # Climate control
+        - conditions:
+            - condition: template
+              value_template: "{{ intent.intent == 'set_temperature' and 'temperature' in intent.entities }}"
+          sequence:
+            - service: climate.set_temperature
+              target:
+                area_id: "{{ intent.entities.location | default('living_room') | replace(' ', '_') }}"
+              data:
+                temperature: "{{ intent.entities.temperature }}"
+            - service: persistent_notification.create
+              data:
+                title: "Voice Command Executed"
+                message: "I've set the temperature to {{ intent.entities.temperature }}°C in the {{ intent.entities.location | default('living room') }}."
+                notification_id: "voice_command"
+
+        # Scene activation
+        - conditions:
+            - condition: template
+              value_template: "{{ intent.intent == 'activate_scene' and 'scene' in intent.entities }}"
+          sequence:
+            - service: scene.turn_on
+              target:
+                entity_id: "scene.{{ intent.entities.scene | lower | replace(' ', '_') }}"
+            - service: persistent_notification.create
+              data:
+                title: "Voice Command Executed"
+                message: "I've activated the {{ intent.entities.scene }} scene."
+                notification_id: "voice_command"
+
+        # Information request
+        - conditions:
+            - condition: template
+              value_template: "{{ intent.intent == 'get_info' }}"
+          sequence:
+            - service: triton_ai.generate_text
+              data:
+                prompt: >
+                  Generate a natural language response to the following question: "{{ transcribed_text }}"
+                  Base your response on this home data:
+                  Temperature: {{ states('sensor.living_room_temperature') }}°C,
+                  Humidity: {{ states('sensor.living_room_humidity') }}%,
+                  Weather: {{ states('weather.home') }},
+                  Time: {{ now().strftime('%H:%M') }}.
+                  Keep the response under 50 words.
+                max_tokens: 100
+                temperature: 0.7
+            - wait_for_trigger:
+                platform: event
+                event_type: triton_ai_text_generation_result
+              timeout:
+                seconds: 10
+            - service: persistent_notification.create
+              data:
+                title: "Voice Info Request"
+                message: "{{ wait.trigger.event.data.generated_text }}"
+                notification_id: "voice_command"
+      default:
+        - service: persistent_notification.create
+          data:
+            title: "Voice Command Not Understood"
+            message: "I'm not sure how to handle that request. You said: '{{ transcribed_text }}'"
+            notification_id: "voice_command"
+
+# Generate daily summary
+generate_daily_summary:
+  alias: "Generate Daily Summary"
+  description: "Generate an AI summary of the day's events and sensor data"
+  sequence:
+    - service: triton_ai.generate_text
+      data:
+        prompt: >
+          Generate a concise summary of the home status based on the following data:
+
+          Temperature: {{ states('sensor.living_room_temperature') }}°C (Min: {{ states.recorder.statistics.min.sensor.living_room_temperature.mean }}, Max: {{ states.recorder.statistics.max.sensor.living_room_temperature.mean }})
+          Humidity: {{ states('sensor.living_room_humidity') }}%
+          Energy usage today: {{ states('sensor.energy_consumption_today') }} kWh
+          Weather: {{ states('weather.home') }}
+          Doors opened: {{ states.recorder.statistics.sum.sensor.door_open_count.sum }} times
+          Motion events: {{ states.recorder.statistics.sum.sensor.motion_event_count.sum }} events
+
+          Include any unusual patterns or anomalies, and provide a brief forecast for tomorrow.
+          Format the response as a friendly message to the home owner.
+        max_tokens: 250
+        temperature: 0.7
+    - wait_for_trigger:
+        platform: event
+        event_type: triton_ai_text_generation_result
+      timeout:
+        seconds: 20
+    - service: notify.mobile_app
+      data:
+        title: "Your Home Daily Summary"
+        message: "{{ wait.trigger.event.data.generated_text }}"
+
+# Analyze sensor history
+analyze_sensor_history:
+  alias: "Analyze Sensor History"
+  description: "Analyze the history of a sensor using AI"
+  fields:
+    entity_id:
+      description: "Entity ID of the sensor to analyze"
+      example: "sensor.living_room_temperature"
+  sequence:
+    - service: triton_ai.analyze_sensor
+      data:
+        entity_id: "{{ entity_id }}"
+    - wait_for_trigger:
+        platform: event
+        event_type: triton_ai_sensor_analysis_result
+      timeout:
+        seconds: 10
+    - service: persistent_notification.create
+      data:
+        title: "Sensor Analysis Results"
+        message: >
+          Analysis for {{ entity_id }}:
+          {% if wait.trigger.event.data.anomaly.anomaly_detected %}
+            Anomaly detected with score {{ wait.trigger.event.data.anomaly.score }}!
+            {{ wait.trigger.event.data.anomaly.description }}
+          {% else %}
+            No anomalies detected (Score: {{ wait.trigger.event.data.anomaly.score }})
+          {% endif %}
+
+          Forecast for next 24 hours:
+          {% for value, timestamp in zip(wait.trigger.event.data.forecast.values, wait.trigger.event.data.forecast.timestamps) %}
+            {{ timestamp }}: {{ value }}
+          {% endfor %}
+        notification_id: "sensor_analysis_{{ entity_id | replace('.', '_') }}"

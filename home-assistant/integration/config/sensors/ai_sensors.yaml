@@ -1,0 +1,47 @@
+# Template sensors for AI integration
+
+template:
+  - sensor:
+      # AI model status sensor
+      - name: "Triton AI Status"
+        unique_id: triton_ai_status
+        state: >
+          {% if 'triton_ai' in states %}
+            online
+          {% else %}
+            offline
+          {% endif %}
+        icon: mdi:brain
+
+      # Ray cluster sensor
+      - name: "Ray Cluster Status"
+        unique_id: ray_cluster_status
+        state: >
+          {% set ray_status = state_attr('sensor.triton_ai_status', 'ray_status') %}
+          {% if ray_status == 'connected' %}
+            online
+          {% else %}
+            offline
+          {% endif %}
+        icon: mdi:grid
+
+      # AI anomaly summary sensor
+      - name: "AI Anomaly Summary"
+        unique_id: ai_anomaly_summary
+        state: >
+          {% set anomaly_count = states | selectattr('entity_id', 'search', '_anomaly') |
+                selectattr('state', 'eq', 'on') | list | count %}
+          {{ anomaly_count }}
+        icon: mdi:alert-circle
+        unit_of_measurement: anomalies
+
+      # High priority anomalies
+      - name: "High Priority Anomalies"
+        unique_id: high_priority_anomalies
+        state: >
+          {% set high_anomalies = states | selectattr('entity_id', 'search', '_anomaly_score') |
+                selectattr('state', 'float') | rejectattr('state', 'eq', 'unknown') |
+                selectattr('state', '>=', 0.8) | list | count %}
+          {{ high_anomalies }}
+        icon: mdi:alert-octagon
+        unit_of_measurement: anomalies

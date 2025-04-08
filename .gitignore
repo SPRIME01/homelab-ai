@@ -96,3 +96,35 @@ config.yaml
 *.json
 *.zip
 *.tar.gz
+
+# TypeScript/JavaScript
+node_modules/
+dist/
+build/
+*.js
+*.js.map
+*.d.ts
+.npm
+.eslintcache
+coverage/
+.nyc_output/
+.tsbuildinfo
+*.tgz
+.yarn-integrity
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# IDE and Editor specific
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+.DS_Store
+.history/
+*.code-workspace

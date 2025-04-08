@@ -1,0 +1,12 @@
+# Core dependencies
+numpy>=1.20.0
+pyyaml>=6.0
+aiohttp>=3.8.1
+
+# Audio processing
+sounddevice>=0.4.5
+pvporcupine>=2.1.0  # Wake word detection
+
+# For running as a service
+supervisor>=4.2.4
+python-dotenv>=0.20.0

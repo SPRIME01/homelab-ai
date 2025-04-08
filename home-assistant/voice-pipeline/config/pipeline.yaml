@@ -1,0 +1,55 @@
+# Voice Assistant Pipeline Configuration
+
+# Audio configuration
+audio:
+  input_device: null  # null means use default
+  output_device: null  # null means use default
+  sample_rate: 16000
+  chunk_size: 512
+  command_timeout: 5.0
+  ack_sound_path: "sounds/ack.wav"
+
+# Wake word detection configuration (Porcupine)
+wake_word:
+  porcupine_key: "${PORCUPINE_KEY}"  # Set via environment variable
+  model_path: null  # null to use default keywords
+  sensitivity: 0.5
+  keywords:
+    - "jarvis"
+    - "hey_jetson"
+
+# Triton Inference Server configuration
+triton:
+  url: "http://triton-inference-server.ai.svc.cluster.local:8000"
+  timeout: 30.0
+  concurrency: 1
+
+# Speech-to-text configuration
+stt:
+  model_name: "whisper"
+  language: "en"
+  max_audio_secs: 30.0
+
+# Natural language understanding configuration
+nlu:
+  model_name: "llama"
+  system_prompt: "You are a home assistant AI. Interpret the user's request and convert it into structured intent. Extract entities such as device names, locations, and desired states. Format your response as a valid JSON object with 'intent', 'entities', and 'confidence' fields."
+  max_tokens: 256
+  temperature: 0.2
+
+# Intent configuration
+intent:
+  mappings_path: "config/intent_mappings.yaml"
+  confidence_threshold: 0.6
+
+# Text-to-speech configuration
+tts:
+  model_name: "fastpitch-waveglow"
+  voice_id: "en-US-neural2-F"
+  speed: 1.0
+
+# Home Assistant configuration
+home_assistant:
+  url: "http://home-assistant.home-automation.svc.cluster.local:8123"
+  token: "${HOME_ASSISTANT_TOKEN}"  # Set via environment variable
+  verify_ssl: false

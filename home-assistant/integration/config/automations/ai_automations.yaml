@@ -1,0 +1,120 @@
+# AI-driven automations using Triton AI integration
+
+# Automation to respond to anomaly detections
+- id: 'ai_anomaly_response'
+  alias: 'AI Anomaly Response'
+  description: 'Respond to anomalies detected by AI'
+  trigger:
+    platform: event
+    event_type: triton_ai_anomaly_detected
+  condition:
+    condition: template
+    value_template: '{{ trigger.event.data.score > 0.8 }}'
+  action:
+    - service: notify.mobile_app
+      data:
+        title: "Anomaly Detected!"
+        message: >
+          Unusual activity detected on {{ trigger.event.data.entity_id }}.
+          {{ trigger.event.data.description }}
+        data:
+          priority: high
+    - service: persistent_notification.create
+      data:
+        title: "Anomaly Detected"
+        message: >
+          Unusual activity detected on {{ trigger.event.data.entity_id }}
+          with score {{ trigger.event.data.score }}.
+          {{ trigger.event.data.description }}
+        notification_id: "ai_anomaly_{{ trigger.event.data.entity_id | replace('.', '_') }}"
+
+# Automation for proactive temperature adjustment based on AI predictions
+- id: 'ai_temperature_prediction'
+  alias: 'AI Temperature Prediction Response'
+  description: 'Adjust HVAC based on temperature predictions'
+  trigger:
+    platform: state
+    entity_id: sensor.living_room_temperature_prediction
+  condition:
+    condition: and
+    conditions:
+      - condition: template
+        value_template: '{{ states("climate.living_room") != "off" }}'
+      - condition: template
+        value_template: '{{ (trigger.to_state.state | float) > 25.5 or (trigger.to_state.state | float) < 18.0 }}'
+  action:
+    - service: climate.set_temperature
+      target:
+        entity_id: climate.living_room
+      data:
+        temperature: >
+          {% if (trigger.to_state.state | float) > 25.5 %}
+            23
+          {% elif (trigger.to_state.state | float) < 18.0 %}
+            20
+          {% else %}
+            22
+          {% endif %}
+    - service: notify.mobile_app
+      data:
+        title: "Temperature Adjustment"
+        message: >
+          I've adjusted the thermostat based on predicted temperature changes.
+          Forecast shows it will reach {{ trigger.to_state.state }}°C.
+
+# Automation for voice command processing
+- id: 'ai_voice_command_processing'
+  alias: 'AI Voice Command Processing'
+  description: 'Process voice commands using AI'
+  trigger:
+    platform: event
+    event_type: triton_ai_voice_command_result
+  condition:
+    condition: template
+    value_template: '{{ trigger.event.data.status == "success" }}'
+  action:
+    - service: script.process_voice_intent
+      data:
+        intent: "{{ trigger.event.data.intent }}"
+        transcribed_text: "{{ trigger.event.data.transcribed_text }}"
+
+# Automation for image analysis from doorbell camera
+- id: 'ai_doorbell_image_analysis'
+  alias: 'AI Doorbell Image Analysis'
+  description: 'Analyze doorbell camera images using AI'
+  trigger:
+    platform: state
+    entity_id: binary_sensor.front_door_doorbell
+    to: 'on'
+  action:
+    - service: camera.snapshot
+      target:
+        entity_id: camera.front_door
+      data:
+        filename: '/tmp/doorbell_snapshot.jpg'
+    - service: triton_ai.analyze_image
+      data:
+        image_path: '/tmp/doorbell_snapshot.jpg'
+        model_name: 'yolov5'
+        task: 'detection'
+    - wait_for_trigger:
+        platform: event
+        event_type: triton_ai_image_analysis_result
+      timeout:
+        seconds: 10
+    - service: notify.mobile_app
+      data:
+        title: "Doorbell Activity"
+        message: >
+          {% if wait.trigger.event.data.result.detections | selectattr('label', 'eq', 'person') | list | count > 0 %}
+            Person detected at the front door.
+          {% elif wait.trigger.event.data.result.detections | selectattr('label', 'eq', 'car') | list | count > 0 %}
+            Vehicle detected in front of the house.
+          {% elif wait.trigger.event.data.result.detections | selectattr('label', 'eq', 'dog') | list | count > 0 or
+                wait.trigger.event.data.result.detections | selectattr('label', 'eq', 'cat') | list | count > 0 %}
+            Pet detected at the front door.
+          {% else %}
+            Doorbell activity detected.
+          {% endif %}
+        data:
+          image: '/tmp/doorbell_snapshot.jpg'

@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "homelab-ai"
+version = "0.1.0"
+description = "AI infrastructure and tools for homelab"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    {name = "Your Name"}
+]
+dependencies = [
+    "pytest",
+    "kubetest",
+    "numpy",
+    "tritonclient[http,grpc]",
+    "pillow",
+    "matplotlib",
+    "kubernetes",
+    "soundfile",
+    "homeassistant-api",
+    "paho-mqtt",
+    "websockets",
+    "sounddevice",
+    "pytest-asyncio",
+    "pytest-timeout",
+    "aiohttp"
+]

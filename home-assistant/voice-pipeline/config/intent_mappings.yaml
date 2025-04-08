@@ -1,0 +1,113 @@
+# Intent to Home Assistant service mappings
+
+# Lighting controls
+turn_on_light:
+  domain: light
+  service: turn_on
+  service_data:
+    entity_id: "{{ entity_id }}"
+    brightness: "{{ brightness }}"
+  response_template: "Turning on the lights in the {{ area }}."
+
+turn_off_light:
+  domain: light
+  service: turn_off
+  service_data:
+    entity_id: "{{ entity_id }}"
+  response_template: "Turning off the lights in the {{ area }}."
+
+set_light_brightness:
+  domain: light
+  service: turn_on
+  service_data:
+    entity_id: "{{ entity_id }}"
+    brightness: "{{ brightness }}"
+  response_template: "Setting brightness to {{ brightness_pct }}% in the {{ area }}."
+
+# Climate controls
+set_temperature:
+  domain: climate
+  service: set_temperature
+  service_data:
+    entity_id: "{{ entity_id }}"
+    temperature: "{{ temperature }}"
+  response_template: "Setting temperature to {{ temperature }} degrees in the {{ area }}."
+
+set_hvac_mode:
+  domain: climate
+  service: set_hvac_mode
+  service_data:
+    entity_id: "{{ entity_id }}"
+    hvac_mode: "{{ mode }}"
+  response_template: "Setting {{ area }} thermostat to {{ mode }} mode."
+
+# Media player controls
+play_media:
+  domain: media_player
+  service: play_media
+  service_data:
+    entity_id: "{{ entity_id }}"
+    media_content_id: "{{ content_id }}"
+    media_content_type: "{{ content_type }}"
+  response_template: "Playing {{ content_name }} on {{ device }}."
+
+volume_set:
+  domain: media_player
+  service: volume_set
+  service_data:
+    entity_id: "{{ entity_id }}"
+    volume_level: "{{ volume }}"
+  response_template: "Setting volume to {{ volume_pct }}% on {{ device }}."
+
+media_pause:
+  domain: media_player
+  service: media_pause
+  service_data:
+    entity_id: "{{ entity_id }}"
+  response_template: "Pausing media on {{ device }}."
+
+media_play:
+  domain: media_player
+  service: media_play
+  service_data:
+    entity_id: "{{ entity_id }}"
+  response_template: "Playing media on {{ device }}."
+
+# Scene activation
+activate_scene:
+  domain: scene
+  service: turn_on
+  service_data:
+    entity_id: "{{ entity_id }}"
+  response_template: "Activating {{ scene_name }} scene."
+
+# Device controls
+turn_on_device:
+  domain: switch
+  service: turn_on
+  service_data:
+    entity_id: "{{ entity_id }}"
+  response_template: "Turning on {{ device }} in the {{ area }}."
+
+turn_off_device:
+  domain: switch
+  service: turn_off
+  service_data:
+    entity_id: "{{ entity_id }}"
+  response_template: "Turning off {{ device }} in the {{ area }}."
+
+# Information requests
+get_weather:
+  domain: weather
+  service: get_forecast
+  service_data:
+    entity_id: "{{ entity_id }}"
+  response_template: "The current weather is {{ current_condition }} with a temperature of {{ current_temperature }} degrees."
+
+# Home status
+get_home_status:
+  domain: homeassistant
+  service: custom_query
+  service_data:
+    query_type: "status"
+  response_template: "Your home is currently in {{ home_state }} mode. {{ active_entities }} devices are currently active."

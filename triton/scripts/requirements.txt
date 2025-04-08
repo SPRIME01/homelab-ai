@@ -1,0 +1,45 @@
+# Core dependencies
+numpy>=1.19.0
+pyyaml>=5.1
+tqdm>=4.45.0
+requests>=2.23.0
+pandas>=1.0.0
+matplotlib>=3.2.0
+
+# Model conversion dependencies
+torch>=1.8.0
+torchvision>=0.9.0
+onnx>=1.7.0
+onnxsim>=0.3.0
+onnxruntime>=1.8.0
+onnxruntime-gpu>=1.8.0
+tf2onnx>=1.9.0
+
+# Optional TensorFlow support
+tensorflow>=2.4.0; python_version < '3.9'
+tensorflow>=2.8.0; python_version >= '3.9'
+
+# TensorRT dependencies (included in JetPack, don't install via pip)
+# tensorrt>=8.0.0
+
+# Triton client for benchmarking
+tritonclient[all]>=2.10.0
+
+# HuggingFace integration
+transformers>=4.12.0
+huggingface_hub>=0.4.0
+safetensors>=0.2.0
+
+# Quantization libraries
+optimum>=1.4.0
+awq>=0.1.0; python_version >= '3.8'
+eetq>=0.1.0; python_version >= '3.8'
+
+# LLM support
+ctransformers>=0.2.0; python_version >= '3.8'
+
+# PyCuda for TensorRT optimization
+pycuda>=2022.1
+
+# Polygraphy for TensorRT optimization (install from NVIDIA GitHub)
+# pip install git+https://github.com/NVIDIA/TensorRT.git@8.6.1#subdirectory=tools/Polygraphy
