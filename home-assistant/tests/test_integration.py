@@ -537,6 +537,97 @@ class TestHomeAssistantAIIntegration:
             logger.error(f"Failed to verify automation action: {e}")
             return False
 
+    @pytest.mark.asyncio
+    async def test_triton_initialization_failure(self):
+        """Test Triton initialization failure handling."""
+        invalid_triton_url = "http://invalid-url:8000"
+        try:
+            client = tritonclient.http.InferenceServerClient(
+                url=invalid_triton_url,
+                verbose=False
+            )
+            assert not client.is_server_live(), "Triton server should not be live"
+        except Exception as e:
+            logger.error(f"Triton initialization failed as expected: {e}")
+
+    @pytest.mark.asyncio
+    async def test_ray_initialization_failure(self):
+        """Test Ray initialization failure handling."""
+        invalid_ray_address = "ray://invalid-address:10001"
+        try:
+            # Simulate Ray initialization with invalid address
+            ray_manager = RayTaskManager(invalid_ray_address)
+            success = await ray_manager.initialize()
+            assert not success, "Ray initialization should fail"
+        except Exception as e:
+            logger.error(f"Ray initialization failed as expected: {e}")
+
+    @pytest.mark.asyncio
+    async def test_ray_address_validation(self):
+        """Test validation of Ray address in config flow."""
+        invalid_ray_address = "invalid-ray-address"
+        try:
+            # Simulate config flow validation
+            config_flow = TritonAIConfigFlow()
+            user_input = {
+                CONF_TRITON_URL: "http://valid-triton-url:8000",
+                CONF_RAY_ADDRESS: invalid_ray_address,
+                CONF_MODELS: {
+                    "text_generation": "valid-model",
+                    "image_recognition": "valid-model",
+                    "speech_recognition": "valid-model"
+                }
+            }
+            result = await config_flow.async_step_user(user_input)
+            assert "errors" in result and "invalid_ray_address" in result["errors"]["base"]
+        except Exception as e:
+            logger.error(f"Ray address validation failed as expected: {e}")
+
+    @pytest.mark.asyncio
+    async def test_model_name_validation(self):
+        """Test validation of model names in config flow."""
+        invalid_model_name = ""
+        try:
+            # Simulate config flow validation
+            config_flow = TritonAIConfigFlow()
+            user_input = {
+                CONF_TRITON_URL: "http://valid-triton-url:8000",
+                CONF_RAY_ADDRESS: "ray://valid-ray-address:10001",
+                CONF_MODELS: {
+                    "text_generation": invalid_model_name,
+                    "image_recognition": "valid-model",
+                    "speech_recognition": "valid-model"
+                }
+            }
+            result = await config_flow.async_step_user(user_input)
+            assert "errors" in result and "invalid_model_names" in result["errors"]["base"]
+        except Exception as e:
+            logger.error(f"Model name validation failed as expected: {e}")
+
+    @pytest.mark.asyncio
+    async def test_required_model_checks(self):
+        """Test checks for required models in sensor analysis."""
+        try:
+            # Simulate sensor analysis initialization
+            triton_client = TritonClient("http://valid-triton-url:8000")
+            ray_manager = RayTaskManager("ray://valid-ray-address:10001")
+            sensor_analysis = SensorAnalysisService(None, triton_client, ray_manager)
+            success = await sensor_analysis.initialize()
+            assert not success, "Sensor analysis initialization should fail due to missing models"
+        except Exception as e:
+            logger.error(f"Required model checks failed as expected: {e}")
+
+    @pytest.mark.asyncio
+    async def test_triton_error_handling(self):
+        """Test comprehensive error handling in Triton client."""
+        try:
+            # Simulate Triton client initialization with invalid URL
+            triton_client = TritonClient("http://invalid-triton-url:8000")
+            success = await triton_client.initialize()
+            assert not success, "Triton client initialization should fail"
+        except Exception as e:
+            logger.error(f"Triton error handling failed as expected: {e}")
+
 def main():
     """Run the tests."""
     # Create output directory

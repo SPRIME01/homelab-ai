@@ -37,14 +37,24 @@ class TritonAIConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             success = await triton_client.initialize()
 
             if success:
-                # Close the client
-                await triton_client.close()
+                # Validate Ray address
+                ray_address = user_input[CONF_RAY_ADDRESS]
+                if not ray_address.startswith("ray://"):
+                    errors["base"] = "invalid_ray_address"
+                else:
+                    # Validate model names
+                    models = user_input[CONF_MODELS]
+                    if not all(models.values()):
+                        errors["base"] = "invalid_model_names"
+                    else:
+                        # Close the client
+                        await triton_client.close()
 
-                # Create configuration entry
-                return self.async_create_entry(
-                    title="Triton AI Integration",
-                    data=user_input,
-                )
+                        # Create configuration entry
+                        return self.async_create_entry(
+                            title="Triton AI Integration",
+                            data=user_input,
+                        )
             else:
                 errors["base"] = "cannot_connect"
 
