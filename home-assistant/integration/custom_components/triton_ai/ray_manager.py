@@ -137,6 +137,13 @@ class RayTaskManager:
                 "task_id": task_id,
             }
 
+        except ray.exceptions.RayTaskError as err:
+            _LOGGER.error("Ray task submission failed: %s", err)
+            return {
+                "status": "error",
+                "error": str(err),
+                "task_id": task_id
+            }
         except Exception as err:  # pylint: disable=broad-except
             _LOGGER.error("Error submitting Ray task: %s", err)
             return {

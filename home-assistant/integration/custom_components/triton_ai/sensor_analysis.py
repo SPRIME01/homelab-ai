@@ -75,6 +75,10 @@ class SensorAnalysisService:
             _LOGGER.warning("Forecasting model not available")
             models_available = False
 
+        if not models_available:
+            _LOGGER.error("Required models are unavailable. Initialization failed.")
+            return False
+
         # Set up state tracking for relevant entities
         @callback
         def sensor_state_change(entity_id, old_state, new_state):
