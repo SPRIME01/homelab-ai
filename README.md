@@ -74,3 +74,6 @@ MIT License
 
 ## ⚠️ Disclaimer
 This project is for personal homelab use. Please ensure compliance with model licenses and hardware requirements.
+
+## 📋 To-Do List
+For a comprehensive to-do list identifying all necessary tasks to ensure the project is robust, maintainable, well-documented, and functionally correct, please refer to the [To-Do List](docs/todo_list.md).
