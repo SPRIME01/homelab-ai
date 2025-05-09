@@ -4,6 +4,7 @@ import asyncio
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional, Set
 import numpy as np
+import tritonclient.grpc as triton
 
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.typing import StateType
